@@ -30,6 +30,27 @@ function makeApp(pool: ConnectionPool) {
   return app;
 }
 
+function capturingPool(recordSets: unknown[][]): { pool: ConnectionPool; calls: Record<string, unknown>[] } {
+  const calls: Record<string, unknown>[] = [];
+  let call = 0;
+  const pool = {
+    request() {
+      return {
+        input(name: string, value: unknown) {
+          this.inputs = this.inputs ?? {};
+          this.inputs[name] = value;
+        },
+        async query(_sql: string) {
+          const req = this as unknown as { inputs: Record<string, unknown> };
+          calls.push(req.inputs ?? {});
+          return { recordset: recordSets[Math.min(call++, recordSets.length - 1)] ?? [] };
+        },
+      };
+    },
+  } as unknown as ConnectionPool;
+  return { pool, calls };
+}
+
 const ticketRow = {
   Id: 'a',
   WorkItemId: 'IR1',
@@ -49,6 +70,26 @@ test('resolves user id then returns merged tickets', async () => {
   assert.equal(res.body.results[0].ticketType, 'incident');
   assert.equal(res.body.total, 1);
   assert.equal(res.body.page, 1);
+  assert.equal(res.body.pageSize, 25);
+});
+
+test('resolves user id then returns merged tickets with envelope', async () => {
+  const pool = fakePool([[{ Id: 'GUID' }], [ticketRow], [{ Total: 1 }]]);
+  const res = await request(makeApp(pool)).get('/v1/users/jsmith/tickets').query({ page: 2, pageSize: 5 });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.page, 2);
+  assert.equal(res.body.pageSize, 5);
+  assert.equal(res.body.total, 1);
+});
+
+test('binds the id and resolved user id as inputs', async () => {
+  const { pool, calls } = capturingPool([[{ Id: 'GUID' }], [ticketRow], [{ Total: 1 }]]);
+  const res = await request(makeApp(pool)).get('/v1/users/jsmith/tickets').query({ page: 2, pageSize: 5 });
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(calls[0], { id: 'jsmith' });
+  assert.deepEqual(calls[1], { userId: 'GUID', offset: 5, pageSize: 5 });
+  assert.deepEqual(calls[2], { userId: 'GUID' });
 });
 
 test('unknown user -> 404', async () => {

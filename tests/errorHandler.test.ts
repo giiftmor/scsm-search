@@ -39,3 +39,13 @@ test('zod validation errors map to 400 VALIDATION with locked shape (no extra fi
   assert.equal(res.status, 400);
   assert.deepEqual(res.body, { error: { code: 'VALIDATION', message: 'Invalid query parameters' } });
 });
+
+test('generic errors map to 500 INTERNAL with locked shape', async () => {
+  const res = await request(
+    makeApp(() => {
+      throw new Error('boom');
+    }),
+  ).get('/boom');
+  assert.equal(res.status, 500);
+  assert.deepEqual(res.body, { error: { code: 'INTERNAL', message: 'Internal server error' } });
+});

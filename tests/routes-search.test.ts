@@ -23,13 +23,45 @@ function fakePool(recordSets: unknown[][]): ConnectionPool {
   } as unknown as ConnectionPool;
 }
 
-function makeApp(pool: ConnectionPool) {
+function makeApp(pool: ConnectionPool, searchMode: 'fts' | 'like' = 'fts') {
   const app = express();
-  app.use('/v1/search', searchRouter({ pool, searchMode: 'fts' }));
+  app.use('/v1/search', searchRouter({ pool, searchMode }));
   app.use(errorHandler);
   app.use((_req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } }));
   return app;
 }
+
+function capturingPool(recordSets: unknown[][]): { pool: ConnectionPool; calls: Record<string, unknown>[] } {
+  const calls: Record<string, unknown>[] = [];
+  let call = 0;
+  const pool = {
+    request() {
+      return {
+        input(name: string, value: unknown) {
+          this.inputs = this.inputs ?? {};
+          this.inputs[name] = value;
+        },
+        async query(_sql: string) {
+          const req = this as unknown as { inputs: Record<string, unknown> };
+          calls.push(req.inputs ?? {});
+          return { recordset: recordSets[Math.min(call++, recordSets.length - 1)] ?? [] };
+        },
+      };
+    },
+  } as unknown as ConnectionPool;
+  return { pool, calls };
+}
+
+test('GET /v1/search/tickets binds q/type/page params as inputs', async () => {
+  const { pool, calls } = capturingPool([[ticketRow], [{ Total: 1 }]]);
+  const res = await request(makeApp(pool)).get('/v1/search/tickets').query({ type: 'incident', q: 'printer', page: 2 });
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].q, '"printer"');
+  assert.equal(calls[0].offset, 25);
+  assert.equal(calls[0].pageSize, 25);
+  assert.deepEqual(calls[1], { q: '"printer"' });
+});
 
 const ticketRow = {
   Id: 'a',
@@ -72,4 +104,35 @@ test('GET /v1/search/users returns mapped users', async () => {
     displayName: 'John Smith',
     upn: 'jsmith@nwu.ac.za',
   });
+});
+
+test('GET /v1/search/tickets falls back to total 0 when the count row is missing', async () => {
+  const app = makeApp(fakePool([[ticketRow], []]));
+  const res = await request(app).get('/v1/search/tickets').query({ type: 'incident', q: 'printer' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.total, 0);
+});
+
+test('GET /v1/search/tickets surfaces DB failures as 500 INTERNAL', async () => {
+  const pool = {
+    request() {
+      return {
+        input() {},
+        async query() {
+          throw new Error('boom');
+        },
+      };
+    },
+  } as unknown as ConnectionPool;
+  const res = await request(makeApp(pool)).get('/v1/search/tickets').query({ type: 'incident' });
+  assert.equal(res.status, 500);
+  assert.equal(res.body.error.code, 'INTERNAL');
+});
+
+test('GET /v1/search/tickets in like mode passes q through raw', async () => {
+  const { pool, calls } = capturingPool([[ticketRow], [{ Total: 1 }]]);
+  const res = await request(makeApp(pool, 'like')).get('/v1/search/tickets').query({ type: 'incident', q: 'printer%' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.results[0].workItemId, 'IR1');
+  assert.equal(calls[0].q, 'printer%');
 });

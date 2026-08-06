@@ -21,10 +21,22 @@ test('search tickets: selects the servicerequest table', () => {
   assert.ok(q.sql.includes('FROM CiresonAnalytics.dbo.SM_WorkItem_ServiceRequest'));
 });
 
-test('search tickets: fts mode uses CONTAINS and strips quotes', () => {
+test('search tickets: fts mode uses CONTAINS with a neutralized term', () => {
   const q = buildSearchTicketsQuery({ ...base, q: 'printer "HP"' }, 'fts');
   assert.ok(q.sql.includes('CONTAINS((Title, Description, ResolutionDescription), @q)'));
-  assert.equal(q.inputs.q, 'printer HP');
+  assert.equal(q.inputs.q, '"printer" AND "HP"');
+});
+
+test('search tickets: fts mode quotes each token so reserved words are literal', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'printer OR AND NOT NEAR FORMSOF * ()' }, 'fts');
+  assert.equal(q.inputs.q, '"printer" AND "OR" AND "AND" AND "NOT" AND "NEAR" AND "FORMSOF"');
+  assert.ok(!q.sql.includes('*'));
+});
+
+test('search tickets: fts mode drops a term that sanitizes to empty (no CONTAINS, no 500)', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: '"' }, 'fts');
+  assert.ok(!q.sql.includes('CONTAINS'));
+  assert.ok(!('q' in q.inputs));
 });
 
 test('search tickets: like mode uses LIKE', () => {
@@ -57,6 +69,8 @@ test('search tickets: all filters bind as parameters', () => {
   assert.equal(q.inputs.status, 'Active');
   assert.equal(q.inputs.affectedUserId, 'jsmith');
   assert.ok(q.inputs.from instanceof Date);
+  assert.ok(q.inputs.to instanceof Date);
+  assert.equal(q.inputs.to.toISOString(), new Date('2026-07-31').toISOString());
 });
 
 test('search tickets: value is parameterized, never inlined', () => {

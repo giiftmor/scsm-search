@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     env_file: .env
     networks:
-      - n8n_default # TODO(ops): replace with the actual n8n host network name
+      - ai-stack_ai_net
     healthcheck:
       test:
         - CMD
@@ -19,5 +19,5 @@ services:
       start_period: 15s
 
 networks:
-  n8n_default:
+  ai-stack_ai_net:
     external: true

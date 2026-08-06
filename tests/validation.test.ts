@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { ZodError } from 'zod';
 import {
   ticketSearchParamsSchema,
   userSearchParamsSchema,
@@ -7,7 +8,10 @@ import {
 } from '../src/schemas/searchParams.js';
 
 test('ticket search: requires type', () => {
-  assert.throws(() => ticketSearchParamsSchema.parse({}), (e: any) => e.issues?.[0].path[0] === 'type');
+  assert.throws(
+    () => ticketSearchParamsSchema.parse({}),
+    (err: unknown) => err instanceof ZodError && err.issues[0].path[0] === 'type'
+  );
 });
 
 test('ticket search: rejects unknown type', () => {
@@ -50,4 +54,5 @@ test('user search: defaults applied', () => {
 test('user tickets: defaults applied', () => {
   const p = userTicketsParamsSchema.parse({});
   assert.equal(p.page, 1);
+  assert.equal(p.pageSize, 25);
 });

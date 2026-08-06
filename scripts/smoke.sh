@@ -2,23 +2,35 @@
 set -euo pipefail
 # Manual smoke test against a running scsm-search instance.
 # Requires .env with DB_SERVER/DB_USER/DB_PASSWORD/API_KEYS/PORT.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 set -a
-source .env
+source "$SCRIPT_DIR/../.env"
 set +a
+if [[ -z "${DB_SERVER:-}" || -z "${DB_USER:-}" || -z "${DB_PASSWORD:-}" || -z "${API_KEYS:-}" ]]; then
+  echo "error: .env must set DB_SERVER, DB_USER, DB_PASSWORD, API_KEYS" >&2
+  exit 1
+fi
 KEY="$(cut -d',' -f1 <<<"$API_KEYS")"
 BASE="${SMOKE_BASE:-http://localhost:${PORT:-3000}}"
 
+get() { # GET <path> — fetch and print at most 600 chars (no pipe, EPIPE-safe)
+  local url="$1"
+  local body
+  body="$(curl -fsS -H "x-api-key: $KEY" "$url")"
+  printf '%s\n' "${body:0:600}"
+}
+
 echo "== healthz =="
-curl -fsS "$BASE/healthz"
+get "$BASE/healthz"
 echo
 echo "== user search q=smith =="
-curl -fsS -H "x-api-key: $KEY" "$BASE/v1/search/users?q=smith" | head -c 600
+get "$BASE/v1/search/users?q=smith"
 echo
 echo "== ticket search type=incident q=printer =="
-curl -fsS -H "x-api-key: $KEY" "$BASE/v1/search/tickets?type=incident&q=printer&pageSize=2" | head -c 600
+get "$BASE/v1/search/tickets?type=incident&q=printer&pageSize=2"
 echo
 echo "== user tickets by UPN =="
 UPN="${SMOKE_UPN:-jsmith@nwu.ac.za}"
-curl -fsS -H "x-api-key: $KEY" "$BASE/v1/users/$UPN/tickets?pageSize=2" | head -c 600
+get "$BASE/v1/users/$UPN/tickets?pageSize=2"
 echo
 echo "OK"

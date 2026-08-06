@@ -20,6 +20,7 @@ test('rejects missing API key with 401', async () => {
 test('rejects wrong API key', async () => {
   const res = await request(makeApp()).get('/protected').set('x-api-key', 'wrong');
   assert.equal(res.status, 401);
+  assert.equal(res.body.error.code, 'UNAUTHORIZED');
 });
 
 test('accepts a valid API key', async () => {

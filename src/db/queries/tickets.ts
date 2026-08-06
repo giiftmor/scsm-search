@@ -1,5 +1,5 @@
 import type { PreparedQuery } from '../exec.js';
-import { USER_TABLE } from './users.js';
+import { USER_TABLE, USERNAME_COL, UPN_COL } from './users.js';
 
 export type TicketKind = 'incident' | 'servicerequest';
 
@@ -25,17 +25,19 @@ export function ticketTable(kind: TicketKind): string {
 
 const TICKET_COLUMNS = `Id, WorkItemId, Title, Status, Priority, Created AS CreatedDate, AffectedUser, AffectedUserId`;
 
-const USERNAME_COL = 'u.UserName_6AF77E23_669B_123F_B392_323C17097BBD';
-const UPN_COL = 'u.UPN_7641DFF7_7A20_DC04_FC1C_B6FA8715DA02';
-
 function roleFilter(role: string, param: string): string {
   return `EXISTS (SELECT 1 FROM ${USER_TABLE} u
     WHERE u.BaseManagedEntityId = ${role}
       AND (${USERNAME_COL} = @${param} OR ${UPN_COL} = @${param}))`;
 }
 
-function sanitizeFtsTerm(q: string): string {
-  return q.replace(/"/g, '');
+export function sanitizeFtsTerm(q: string): string {
+  return q
+    .replace(/["()*]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => `"${token}"`)
+    .join(' AND ');
 }
 
 export function buildTicketWhere(
@@ -74,8 +76,11 @@ export function buildTicketWhere(
   }
   if (p.q) {
     if (searchMode === 'fts') {
-      where.push('CONTAINS((Title, Description, ResolutionDescription), @q)');
-      inputs.q = sanitizeFtsTerm(p.q);
+      const term = sanitizeFtsTerm(p.q);
+      if (term) {
+        where.push('CONTAINS((Title, Description, ResolutionDescription), @q)');
+        inputs.q = term;
+      }
     } else {
       where.push(
         `(Title LIKE '%' + @q + '%' OR Description LIKE '%' + @q + '%' OR ResolutionDescription LIKE '%' + @q + '%')`
@@ -115,12 +120,12 @@ FROM ${ticketTable(p.type)}
 ${whereSql};`, inputs };
 }
 
-export interface UserTicketsParams {
+export interface Pagination {
   page: number;
   pageSize: number;
 }
 
-export function buildUserTicketsQuery(userId: string, p: UserTicketsParams): PreparedQuery {
+export function buildUserTicketsQuery(userId: string, p: Pagination): PreparedQuery {
   return {
     sql: `SELECT 'incident' AS TicketType, ${TICKET_COLUMNS}
 FROM CiresonAnalytics.dbo.SM_WorkItem_Incident

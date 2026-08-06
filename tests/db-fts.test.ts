@@ -31,7 +31,6 @@ test('checkFtsCatalog returns false when no catalog exists', async () => {
   assert.equal(ok, false);
 });
 
-test('checkFtsCatalog returns false when the probe query fails', async () => {
-  const ok = await checkFtsCatalog(fakePool([], true));
-  assert.equal(ok, false);
+test('checkFtsCatalog throws when the probe query fails', async () => {
+  await assert.rejects(checkFtsCatalog(fakePool([], true)));
 });
