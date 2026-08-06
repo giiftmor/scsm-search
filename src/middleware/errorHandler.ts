@@ -4,16 +4,14 @@ import { ZodError } from 'zod';
 function isConnectionError(err: unknown): boolean {
   if (err && typeof err === 'object' && 'code' in err) {
     const code = String((err as { code?: unknown }).code);
-    return ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEOUT', 'ESOCKET'].includes(code);
+    return ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEOUT', 'ESOCKET', 'ECONNRESET', 'EPIPE', 'ECONNABORTED'].includes(code);
   }
   return false;
 }
 
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof ZodError) {
-    res.status(400).json({
-      error: { code: 'VALIDATION', message: 'Invalid query parameters', details: err.flatten().fieldErrors },
-    });
+    res.status(400).json({ error: { code: 'VALIDATION', message: 'Invalid query parameters' } });
     return;
   }
   if (isConnectionError(err)) {
