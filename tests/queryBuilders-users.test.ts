@@ -37,8 +37,14 @@ test('count users mirrors the where clause', () => {
 
 test('resolve user: matches guid, username, or upn', () => {
   const q = buildResolveUserQuery('jsmith');
-  assert.ok(q.sql.includes('BaseManagedEntityId = @id'));
+  assert.ok(q.sql.includes('BaseManagedEntityId = TRY_CONVERT(uniqueidentifier, @id)'));
   assert.ok(q.sql.includes('UserName_6AF77E23_669B_123F_B392_323C17097BBD = @id'));
   assert.ok(q.sql.includes('UPN_7641DFF7_7A20_DC04_FC1C_B6FA8715DA02 = @id'));
   assert.deepEqual(q.inputs, { id: 'jsmith' });
+});
+
+test('resolve user: non-guid id never binds a bare uniqueidentifier comparison', () => {
+  const q = buildResolveUserQuery('jsmith@nwu.ac.za');
+  assert.ok(q.sql.includes('TRY_CONVERT(uniqueidentifier, @id)'));
+  assert.ok(!q.sql.includes('BaseManagedEntityId = @id'));
 });

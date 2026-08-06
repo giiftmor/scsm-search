@@ -7,7 +7,7 @@ export function makePool(config: AppConfig): sql.ConnectionPool {
     user: config.dbUser,
     password: config.dbPassword,
     database: 'CiresonAnalytics',
-    options: { encrypt: true, trustServerCertificate: false },
+    options: { encrypt: true, trustServerCertificate: true },
     pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
   });
 }

@@ -55,7 +55,7 @@ export function buildResolveUserQuery(id: string): PreparedQuery {
   return {
     sql: `SELECT TOP (2) u.BaseManagedEntityId AS Id
 FROM ${USER_TABLE} u
-WHERE u.BaseManagedEntityId = @id
+WHERE u.BaseManagedEntityId = TRY_CONVERT(uniqueidentifier, @id)
    OR ${USERNAME_COL} = @id
    OR ${UPN_COL} = @id;`,
     inputs: { id },

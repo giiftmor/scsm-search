@@ -30,7 +30,8 @@ echo "== ticket search type=incident q=printer =="
 get "$BASE/v1/search/tickets?type=incident&q=printer&pageSize=2"
 echo
 echo "== user tickets by UPN =="
-UPN="${SMOKE_UPN:-jsmith@nwu.ac.za}"
+UPN="${SMOKE_UPN:-$(get "$BASE/v1/search/users?q=smith&pageSize=1" | python3 -c "import json,sys; print(json.load(sys.stdin)['results'][0]['upn'])" 2>/dev/null || echo 'jsmith@nwu.ac.za')}"
+echo "UPN: $UPN"
 get "$BASE/v1/users/$UPN/tickets?pageSize=2"
 echo
 echo "OK"

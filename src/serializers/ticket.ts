@@ -8,7 +8,7 @@ export function rowToTicket(row: TicketRow): TicketResult {
     workItemId: row.WorkItemId,
     title: row.Title,
     status: row.Status,
-    priority: row.Priority,
+    priority: row.Priority ?? null,
     createdDate,
     affectedUser: row.AffectedUser
       ? { id: row.AffectedUserId ?? '', displayName: row.AffectedUser }

@@ -5,7 +5,7 @@ export interface TicketRow {
   WorkItemId: string;
   Title: string;
   Status: string;
-  Priority: string;
+  Priority: string | null;
   CreatedDate: Date | string;
   AffectedUser: string | null;
   AffectedUserId: string | null;
@@ -25,7 +25,7 @@ export interface TicketResult {
   workItemId: string;
   title: string;
   status: string;
-  priority: string;
+  priority: string | null;
   createdDate: string;
   affectedUser: AffectedUserResult | null;
   ticketType?: TicketType;

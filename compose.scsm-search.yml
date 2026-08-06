@@ -5,6 +5,8 @@ services:
     container_name: scsm-search
     restart: unless-stopped
     env_file: .env
+    ports:
+      - "3101:3000"
     networks:
       - ai-stack_ai_net
     healthcheck:

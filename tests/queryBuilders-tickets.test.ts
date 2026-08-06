@@ -45,10 +45,11 @@ test('search tickets: like mode uses LIKE', () => {
   assert.ok(!q.sql.includes('CONTAINS'));
 });
 
-test('search tickets: all filters bind as parameters', () => {
+test('search tickets: all filters bind as parameters (servicerequest)', () => {
   const q = buildSearchTicketsQuery(
     {
       ...base,
+      type: 'servicerequest',
       status: 'Active',
       priority: '2',
       affectedUserId: 'jsmith',
@@ -71,6 +72,19 @@ test('search tickets: all filters bind as parameters', () => {
   assert.ok(q.inputs.from instanceof Date);
   assert.ok(q.inputs.to instanceof Date);
   assert.equal(q.inputs.to.toISOString(), new Date('2026-07-31').toISOString());
+});
+
+test('search tickets: incident drops the priority filter and projects NULL Priority', () => {
+  const q = buildSearchTicketsQuery({ ...base, priority: '2', status: 'Active' }, 'fts');
+  assert.ok(!q.sql.includes('Priority = @priority'));
+  assert.ok(!('priority' in q.inputs));
+  assert.ok(q.sql.includes('NULL AS Priority'));
+  const sr = buildSearchTicketsQuery(
+    { ...base, type: 'servicerequest', priority: '2' },
+    'fts'
+  );
+  assert.ok(sr.sql.includes('Priority = @priority'));
+  assert.ok(!sr.sql.includes('NULL AS Priority'));
 });
 
 test('search tickets: value is parameterized, never inlined', () => {
@@ -151,4 +165,18 @@ test('rowToTicket keeps ticketType when present', () => {
     TicketType: 'incident',
   };
   assert.equal(rowToTicket(row).ticketType, 'incident');
+});
+
+test('rowToTicket maps a null Priority (incident rows) to null', () => {
+  const row = {
+    Id: 'a',
+    WorkItemId: 'IR1',
+    Title: 't',
+    Status: 'Active',
+    Priority: null,
+    CreatedDate: '2026-07-01',
+    AffectedUser: null,
+    AffectedUserId: null,
+  };
+  assert.equal(rowToTicket(row).priority, null);
 });

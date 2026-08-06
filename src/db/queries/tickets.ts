@@ -23,7 +23,11 @@ export function ticketTable(kind: TicketKind): string {
     : 'CiresonAnalytics.dbo.SM_WorkItem_ServiceRequest';
 }
 
-const TICKET_COLUMNS = `Id, WorkItemId, Title, Status, Priority, Created AS CreatedDate, AffectedUser, AffectedUserId`;
+function ticketColumns(kind: TicketKind): string {
+  return kind === 'servicerequest'
+    ? `Id, WorkItemId, Title, Status, Priority, Created AS CreatedDate, AffectedUser, AffectedUserId`
+    : `Id, WorkItemId, Title, Status, NULL AS Priority, Created AS CreatedDate, AffectedUser, AffectedUserId`;
+}
 
 function roleFilter(role: string, param: string): string {
   return `EXISTS (SELECT 1 FROM ${USER_TABLE} u
@@ -50,7 +54,7 @@ export function buildTicketWhere(
     where.push('Status = @status');
     inputs.status = p.status;
   }
-  if (p.priority) {
+  if (p.priority && p.type === 'servicerequest') {
     where.push('Priority = @priority');
     inputs.priority = p.priority;
   }
@@ -100,7 +104,7 @@ export function buildSearchTicketsQuery(
   inputs.pageSize = p.pageSize;
   const whereSql = where.length ? `WHERE ${where.join('\n  AND ')}` : '';
   return {
-    sql: `SELECT ${TICKET_COLUMNS}
+    sql: `SELECT ${ticketColumns(p.type)}
 FROM ${ticketTable(p.type)}
 ${whereSql}
 ORDER BY Created DESC
@@ -127,11 +131,11 @@ export interface Pagination {
 
 export function buildUserTicketsQuery(userId: string, p: Pagination): PreparedQuery {
   return {
-    sql: `SELECT 'incident' AS TicketType, ${TICKET_COLUMNS}
+    sql: `SELECT 'incident' AS TicketType, ${ticketColumns('incident')}
 FROM CiresonAnalytics.dbo.SM_WorkItem_Incident
 WHERE AffectedUserId = @userId
 UNION ALL
-SELECT 'servicerequest', ${TICKET_COLUMNS}
+SELECT 'servicerequest', ${ticketColumns('servicerequest')}
 FROM CiresonAnalytics.dbo.SM_WorkItem_ServiceRequest
 WHERE AffectedUserId = @userId
 ORDER BY CreatedDate DESC
