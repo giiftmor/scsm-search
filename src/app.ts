@@ -16,7 +16,7 @@ export interface AppDeps {
 export function createApp({ pool, searchMode, apiKeys }: AppDeps): express.Express {
   const app = express();
   app.disable('x-powered-by');
-  app.use(pinoHttp({ level: process.env.LOG_LEVEL ?? 'info' }));
+  app.use(pinoHttp({ level: process.env.LOG_LEVEL ?? 'info', redact: ['req.headers["x-api-key"]'] }));
 
   app.use('/healthz', healthRouter({ pool }));
   app.use('/v1', createAuthMiddleware(apiKeys));
