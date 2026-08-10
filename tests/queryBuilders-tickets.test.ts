@@ -45,6 +45,33 @@ test('search tickets: like mode uses LIKE', () => {
   assert.ok(!q.sql.includes('CONTAINS'));
 });
 
+test('search tickets: q also matches WorkItemId in fts mode', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'IR1660031' }, 'fts');
+  assert.ok(q.sql.includes("WorkItemId LIKE '%' + @qId + '%'"));
+  assert.equal(q.inputs.qId, 'IR1660031');
+});
+
+test('search tickets: q also matches WorkItemId in like mode', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'IR1660031' }, 'like');
+  assert.ok(q.sql.includes("WorkItemId LIKE '%' + @qId + '%'"));
+  assert.equal(q.inputs.qId, 'IR1660031');
+});
+
+test('search tickets: WorkItemId and text matches share one OR group', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'printer IR1' }, 'fts');
+  assert.match(
+    q.sql,
+    /\(\s*WorkItemId LIKE '%' \+ @qId \+ '%' OR CONTAINS\(\(Title, Description, ResolutionDescription\), @q\)\s*\)/
+  );
+});
+
+test('search tickets: a q that sanitizes to empty still matches WorkItemId', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: '"' }, 'fts');
+  assert.ok(q.sql.includes("WorkItemId LIKE '%' + @qId + '%'"));
+  assert.equal(q.inputs.qId, '"');
+  assert.ok(!('q' in q.inputs));
+});
+
 test('search tickets: all filters bind as parameters (servicerequest)', () => {
   const q = buildSearchTicketsQuery(
     {

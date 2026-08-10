@@ -79,17 +79,25 @@ export function buildTicketWhere(
     inputs.to = p.to;
   }
   if (p.q) {
+    const workItemIdCond = `WorkItemId LIKE '%' + @qId + '%'`;
     if (searchMode === 'fts') {
       const term = sanitizeFtsTerm(p.q);
       if (term) {
-        where.push('CONTAINS((Title, Description, ResolutionDescription), @q)');
+        where.push(
+          `(WorkItemId LIKE '%' + @qId + '%' OR CONTAINS((Title, Description, ResolutionDescription), @q))`
+        );
         inputs.q = term;
+        inputs.qId = p.q;
+      } else {
+        where.push(workItemIdCond);
+        inputs.qId = p.q;
       }
     } else {
       where.push(
-        `(Title LIKE '%' + @q + '%' OR Description LIKE '%' + @q + '%' OR ResolutionDescription LIKE '%' + @q + '%')`
+        `(WorkItemId LIKE '%' + @qId + '%' OR Title LIKE '%' + @q + '%' OR Description LIKE '%' + @q + '%' OR ResolutionDescription LIKE '%' + @q + '%')`
       );
       inputs.q = p.q;
+      inputs.qId = p.q;
     }
   }
   return { where, inputs };

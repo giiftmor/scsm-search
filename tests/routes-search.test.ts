@@ -60,7 +60,7 @@ test('GET /v1/search/tickets binds q/type/page params as inputs', async () => {
   assert.equal(calls[0].q, '"printer"');
   assert.equal(calls[0].offset, 25);
   assert.equal(calls[0].pageSize, 25);
-  assert.deepEqual(calls[1], { q: '"printer"' });
+  assert.deepEqual(calls[1], { q: '"printer"', qId: 'printer' });
 });
 
 const ticketRow = {
