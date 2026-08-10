@@ -24,9 +24,11 @@ export function ticketTable(kind: TicketKind): string {
 }
 
 function ticketColumns(kind: TicketKind): string {
-  return kind === 'servicerequest'
-    ? `Id, WorkItemId, Title, Status, Priority, Created AS CreatedDate, AffectedUser, AffectedUserId`
-    : `Id, WorkItemId, Title, Status, NULL AS Priority, Created AS CreatedDate, AffectedUser, AffectedUserId`;
+  const base =
+    kind === 'servicerequest'
+      ? `Id, WorkItemId, Title, Status, Priority, Created AS CreatedDate`
+      : `Id, WorkItemId, Title, Status, NULL AS Priority, Created AS CreatedDate`;
+  return `${base}, AffectedUser, AffectedUserId, CreatedByUser, CreatedByUserId, AssignedUser, AssignedUserId`;
 }
 
 function roleFilter(role: string, param: string): string {

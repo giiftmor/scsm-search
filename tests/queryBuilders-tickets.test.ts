@@ -207,3 +207,50 @@ test('rowToTicket maps a null Priority (incident rows) to null', () => {
   };
   assert.equal(rowToTicket(row).priority, null);
 });
+
+test('search tickets: projects creator and assignee columns for both kinds', () => {
+  const q = buildSearchTicketsQuery(base, 'fts');
+  assert.ok(q.sql.includes('CreatedByUser, CreatedByUserId, AssignedUser, AssignedUserId'));
+  const sr = buildSearchTicketsQuery({ ...base, type: 'servicerequest' }, 'fts');
+  assert.ok(sr.sql.includes('CreatedByUser, CreatedByUserId, AssignedUser, AssignedUserId'));
+});
+
+test('rowToTicket maps createdByUser and assignedUser', () => {
+  const row = {
+    Id: 'a',
+    WorkItemId: 'IR1',
+    Title: 't',
+    Status: 'Active',
+    Priority: '2',
+    CreatedDate: new Date('2026-07-01T09:00:00Z'),
+    AffectedUser: 'John Smith',
+    AffectedUserId: 'g',
+    CreatedByUser: 'Jane Doe',
+    CreatedByUserId: 'h',
+    AssignedUser: 'Bob Roe',
+    AssignedUserId: 'i',
+  };
+  const t = rowToTicket(row);
+  assert.deepEqual(t.createdByUser, { id: 'h', displayName: 'Jane Doe' });
+  assert.deepEqual(t.assignedUser, { id: 'i', displayName: 'Bob Roe' });
+});
+
+test('rowToTicket maps null createdBy and assigned users', () => {
+  const row = {
+    Id: 'a',
+    WorkItemId: 'IR1',
+    Title: 't',
+    Status: 'Active',
+    Priority: '2',
+    CreatedDate: '2026-07-01',
+    AffectedUser: null,
+    AffectedUserId: null,
+    CreatedByUser: null,
+    CreatedByUserId: null,
+    AssignedUser: null,
+    AssignedUserId: null,
+  };
+  const t = rowToTicket(row);
+  assert.equal(t.createdByUser, null);
+  assert.equal(t.assignedUser, null);
+});

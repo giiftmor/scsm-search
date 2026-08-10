@@ -1,4 +1,11 @@
-import type { TicketResult, TicketRow } from '../types/ticket.js';
+import type { TicketResult, TicketRow, UserResult } from '../types/ticket.js';
+
+function toUserResult(
+  name: string | null | undefined,
+  id: string | null | undefined
+): UserResult | null {
+  return name ? { id: id ?? '', displayName: name } : null;
+}
 
 export function rowToTicket(row: TicketRow): TicketResult {
   const createdDate =
@@ -10,9 +17,9 @@ export function rowToTicket(row: TicketRow): TicketResult {
     status: row.Status,
     priority: row.Priority ?? null,
     createdDate,
-    affectedUser: row.AffectedUser
-      ? { id: row.AffectedUserId ?? '', displayName: row.AffectedUser }
-      : null,
+    affectedUser: toUserResult(row.AffectedUser, row.AffectedUserId),
+    createdByUser: toUserResult(row.CreatedByUser, row.CreatedByUserId),
+    assignedUser: toUserResult(row.AssignedUser, row.AssignedUserId),
   };
   if ('TicketType' in row && (row as { TicketType?: string }).TicketType) {
     result.ticketType = (row as { TicketType: TicketResult['ticketType'] }).TicketType;

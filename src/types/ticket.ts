@@ -1,5 +1,10 @@
 export type TicketType = 'incident' | 'servicerequest';
 
+export interface UserResult {
+  id: string;
+  displayName: string;
+}
+
 export interface TicketRow {
   Id: string;
   WorkItemId: string;
@@ -9,15 +14,14 @@ export interface TicketRow {
   CreatedDate: Date | string;
   AffectedUser: string | null;
   AffectedUserId: string | null;
+  CreatedByUser: string | null;
+  CreatedByUserId: string | null;
+  AssignedUser: string | null;
+  AssignedUserId: string | null;
 }
 
 export interface UserTicketRow extends TicketRow {
   TicketType: TicketType;
-}
-
-export interface AffectedUserResult {
-  id: string;
-  displayName: string;
 }
 
 export interface TicketResult {
@@ -27,6 +31,8 @@ export interface TicketResult {
   status: string;
   priority: string | null;
   createdDate: string;
-  affectedUser: AffectedUserResult | null;
+  affectedUser: UserResult | null;
+  createdByUser: UserResult | null;
+  assignedUser: UserResult | null;
   ticketType?: TicketType;
 }
