@@ -30,8 +30,11 @@ function makeApp(pool: ConnectionPool) {
   return app;
 }
 
-function capturingPool(recordSets: unknown[][]): { pool: ConnectionPool; calls: Record<string, unknown>[] } {
+function capturingPool(
+  recordSets: unknown[][]
+): { pool: ConnectionPool; calls: Record<string, unknown>[]; sqls: string[] } {
   const calls: Record<string, unknown>[] = [];
+  const sqls: string[] = [];
   let call = 0;
   const pool = {
     request() {
@@ -40,15 +43,16 @@ function capturingPool(recordSets: unknown[][]): { pool: ConnectionPool; calls: 
           this.inputs = this.inputs ?? {};
           this.inputs[name] = value;
         },
-        async query(_sql: string) {
+        async query(sql: string) {
           const req = this as unknown as { inputs: Record<string, unknown> };
           calls.push(req.inputs ?? {});
+          sqls.push(sql);
           return { recordset: recordSets[Math.min(call++, recordSets.length - 1)] ?? [] };
         },
       };
     },
   } as unknown as ConnectionPool;
-  return { pool, calls };
+  return { pool, calls, sqls };
 }
 
 const ticketRow = {
@@ -110,10 +114,19 @@ test('validates pagination params', async () => {
 });
 
 test('role is forwarded to the count query', async () => {
-  const { pool, calls } = capturingPool([[{ Id: 'GUID' }], [ticketRow], [{ Total: 1 }]]);
+  const { pool, calls, sqls } = capturingPool([[{ Id: 'GUID' }], [ticketRow], [{ Total: 1 }]]);
   const res = await request(makeApp(pool)).get('/v1/users/jsmith/tickets').query({ role: 'assigned' });
   assert.equal(res.status, 200);
   assert.deepEqual(calls[2], { userId: 'GUID' });
+  assert.ok(sqls[2].includes('WHERE AssignedUserId = @userId'));
+  assert.ok(!sqls[2].includes('WHERE AffectedUserId = @userId'));
+});
+
+test('default role keeps the count query on the affected column', async () => {
+  const { pool, sqls } = capturingPool([[{ Id: 'GUID' }], [ticketRow], [{ Total: 1 }]]);
+  const res = await request(makeApp(pool)).get('/v1/users/jsmith/tickets');
+  assert.equal(res.status, 200);
+  assert.ok(sqls[2].includes('WHERE AffectedUserId = @userId'));
 });
 
 test('invalid role -> 400', async () => {
