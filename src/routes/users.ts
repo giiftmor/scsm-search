@@ -24,7 +24,7 @@ export function usersRouter(opts: { pool: ConnectionPool }): Router {
     const userId = resolved[0].Id;
     const [rows, total] = await Promise.all([
       exec<UserTicketRow>(opts.pool, buildUserTicketsQuery(userId, p)),
-      exec<{ Total: number }>(opts.pool, buildCountUserTicketsQuery(userId)),
+      exec<{ Total: number }>(opts.pool, buildCountUserTicketsQuery(userId, p.role)),
     ]);
     res.json({
       results: rows.map(rowToTicket),

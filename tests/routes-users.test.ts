@@ -108,3 +108,15 @@ test('validates pagination params', async () => {
   const res = await request(makeApp(fakePool([[]]))).get('/v1/users/jsmith/tickets').query({ page: '0' });
   assert.equal(res.status, 400);
 });
+
+test('role is forwarded to the count query', async () => {
+  const { pool, calls } = capturingPool([[{ Id: 'GUID' }], [ticketRow], [{ Total: 1 }]]);
+  const res = await request(makeApp(pool)).get('/v1/users/jsmith/tickets').query({ role: 'assigned' });
+  assert.equal(res.status, 200);
+  assert.deepEqual(calls[2], { userId: 'GUID' });
+});
+
+test('invalid role -> 400', async () => {
+  const res = await request(makeApp(fakePool([[]]))).get('/v1/users/jsmith/tickets').query({ role: 'bogus' });
+  assert.equal(res.status, 400);
+});

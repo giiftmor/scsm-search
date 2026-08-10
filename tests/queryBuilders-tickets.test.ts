@@ -5,6 +5,7 @@ import {
   buildCountTicketsQuery,
   buildUserTicketsQuery,
   buildCountUserTicketsQuery,
+  roleColumn,
 } from '../src/db/queries/tickets.js';
 import { rowToTicket } from '../src/serializers/ticket.js';
 
@@ -233,6 +234,31 @@ test('rowToTicket maps createdByUser and assignedUser', () => {
   const t = rowToTicket(row);
   assert.deepEqual(t.createdByUser, { id: 'h', displayName: 'Jane Doe' });
   assert.deepEqual(t.assignedUser, { id: 'i', displayName: 'Bob Roe' });
+});
+
+test('user tickets: role selects the role column', () => {
+  const q = buildUserTicketsQuery('GUID', { page: 1, pageSize: 25, role: 'created_by' });
+  assert.ok(q.sql.includes('WHERE CreatedByUserId = @userId'));
+  const a = buildUserTicketsQuery('GUID', { page: 1, pageSize: 25, role: 'assigned' });
+  assert.ok(a.sql.includes('WHERE AssignedUserId = @userId'));
+});
+
+test('user tickets: role defaults to affected', () => {
+  const q = buildUserTicketsQuery('GUID', { page: 1, pageSize: 25 });
+  assert.ok(q.sql.includes('WHERE AffectedUserId = @userId'));
+});
+
+test('count user tickets: role selects the role column', () => {
+  const q = buildCountUserTicketsQuery('GUID', 'assigned');
+  assert.ok(q.sql.includes('WHERE AssignedUserId = @userId'));
+  const d = buildCountUserTicketsQuery('GUID');
+  assert.ok(d.sql.includes('WHERE AffectedUserId = @userId'));
+});
+
+test('roleColumn maps each role to its column', () => {
+  assert.equal(roleColumn('affected'), 'AffectedUserId');
+  assert.equal(roleColumn('created_by'), 'CreatedByUserId');
+  assert.equal(roleColumn('assigned'), 'AssignedUserId');
 });
 
 test('rowToTicket maps null createdBy and assigned users', () => {

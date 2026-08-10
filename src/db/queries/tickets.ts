@@ -139,27 +139,49 @@ export interface Pagination {
   pageSize: number;
 }
 
-export function buildUserTicketsQuery(userId: string, p: Pagination): PreparedQuery {
+export type UserTicketsRole = 'affected' | 'created_by' | 'assigned';
+
+export function roleColumn(role: UserTicketsRole): string {
+  switch (role) {
+    case 'created_by':
+      return 'CreatedByUserId';
+    case 'assigned':
+      return 'AssignedUserId';
+    default:
+      return 'AffectedUserId';
+  }
+}
+
+export interface UserTicketsQueryParams extends Pagination {
+  role?: UserTicketsRole;
+}
+
+export function buildUserTicketsQuery(userId: string, p: UserTicketsQueryParams): PreparedQuery {
+  const col = roleColumn(p.role ?? 'affected');
   return {
     sql: `SELECT 'incident' AS TicketType, ${ticketColumns('incident')}
 FROM CiresonAnalytics.dbo.SM_WorkItem_Incident
-WHERE AffectedUserId = @userId
+WHERE ${col} = @userId
 UNION ALL
 SELECT 'servicerequest', ${ticketColumns('servicerequest')}
 FROM CiresonAnalytics.dbo.SM_WorkItem_ServiceRequest
-WHERE AffectedUserId = @userId
+WHERE ${col} = @userId
 ORDER BY CreatedDate DESC
 OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;`,
     inputs: { userId, offset: (p.page - 1) * p.pageSize, pageSize: p.pageSize },
   };
 }
 
-export function buildCountUserTicketsQuery(userId: string): PreparedQuery {
+export function buildCountUserTicketsQuery(
+  userId: string,
+  role: UserTicketsRole = 'affected'
+): PreparedQuery {
+  const col = roleColumn(role);
   return {
     sql: `SELECT COUNT(*) AS Total FROM (
-  SELECT Id FROM CiresonAnalytics.dbo.SM_WorkItem_Incident WHERE AffectedUserId = @userId
+  SELECT Id FROM CiresonAnalytics.dbo.SM_WorkItem_Incident WHERE ${col} = @userId
   UNION ALL
-  SELECT Id FROM CiresonAnalytics.dbo.SM_WorkItem_ServiceRequest WHERE AffectedUserId = @userId
+  SELECT Id FROM CiresonAnalytics.dbo.SM_WorkItem_ServiceRequest WHERE ${col} = @userId
 ) t;`,
     inputs: { userId },
   };

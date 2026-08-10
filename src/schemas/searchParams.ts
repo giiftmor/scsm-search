@@ -23,7 +23,10 @@ export const userSearchParamsSchema = z.object({
   ...paginationSchema,
 });
 
-export const userTicketsParamsSchema = z.object(paginationSchema);
+export const userTicketsParamsSchema = z.object({
+  role: z.enum(['affected', 'created_by', 'assigned']).default('affected'),
+  ...paginationSchema,
+});
 
 export type TicketSearchParams = z.infer<typeof ticketSearchParamsSchema>;
 export type UserSearchParams = z.infer<typeof userSearchParamsSchema>;
