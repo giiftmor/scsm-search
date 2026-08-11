@@ -26,8 +26,8 @@ export function ticketTable(kind: TicketKind): string {
 function ticketColumns(kind: TicketKind): string {
   const base =
     kind === 'servicerequest'
-      ? `Id, WorkItemId, Title, Status, Priority, Created AS CreatedDate`
-      : `Id, WorkItemId, Title, Status, NULL AS Priority, Created AS CreatedDate`;
+      ? `Id, WorkItemId, Title, Status, Priority, Created AS CreatedDate, ResolvedDate, ClosedDate, Description, ResolutionDescription`
+      : `Id, WorkItemId, Title, Status, NULL AS Priority, Created AS CreatedDate, ResolvedDate, ClosedDate, Description, ResolutionDescription`;
   return `${base}, AffectedUser, AffectedUserId, CreatedByUser, CreatedByUserId, AssignedUser, AssignedUserId`;
 }
 

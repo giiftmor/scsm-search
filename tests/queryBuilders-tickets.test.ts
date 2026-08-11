@@ -216,6 +216,62 @@ test('search tickets: projects creator and assignee columns for both kinds', () 
   assert.ok(sr.sql.includes('CreatedByUser, CreatedByUserId, AssignedUser, AssignedUserId'));
 });
 
+test('search tickets: projects description/resolution/dates for both kinds', () => {
+  const q = buildSearchTicketsQuery(base, 'fts');
+  assert.ok(q.sql.includes('ResolvedDate, ClosedDate, Description, ResolutionDescription'));
+  const sr = buildSearchTicketsQuery({ ...base, type: 'servicerequest' }, 'fts');
+  assert.ok(sr.sql.includes('ResolvedDate, ClosedDate, Description, ResolutionDescription'));
+});
+
+test('user tickets: union projects description/resolution/dates for both kinds', () => {
+  const q = buildUserTicketsQuery('GUID', { page: 1, pageSize: 25 });
+  assert.ok(q.sql.includes('ResolvedDate, ClosedDate, Description, ResolutionDescription'));
+});
+
+test('rowToTicket maps description, resolution and dates', () => {
+  const row = {
+    Id: 'a',
+    WorkItemId: 'IR1',
+    Title: 't',
+    Status: 'Active',
+    Priority: '2',
+    CreatedDate: new Date('2026-07-01T09:00:00Z'),
+    ResolvedDate: new Date('2026-07-02T10:00:00Z'),
+    ClosedDate: new Date('2026-07-03T11:00:00Z'),
+    Description: 'the body',
+    ResolutionDescription: 'the fix',
+    AffectedUser: null,
+    AffectedUserId: null,
+  };
+  const t = rowToTicket(row);
+  assert.equal(t.description, 'the body');
+  assert.equal(t.resolutionDescription, 'the fix');
+  assert.equal(t.resolvedDate, '2026-07-02T10:00:00.000Z');
+  assert.equal(t.closedDate, '2026-07-03T11:00:00.000Z');
+});
+
+test('rowToTicket maps null description, resolution and dates to null', () => {
+  const row = {
+    Id: 'a',
+    WorkItemId: 'IR1',
+    Title: 't',
+    Status: 'Active',
+    Priority: '2',
+    CreatedDate: '2026-07-01',
+    ResolvedDate: null,
+    ClosedDate: null,
+    Description: null,
+    ResolutionDescription: null,
+    AffectedUser: null,
+    AffectedUserId: null,
+  };
+  const t = rowToTicket(row);
+  assert.equal(t.description, null);
+  assert.equal(t.resolutionDescription, null);
+  assert.equal(t.resolvedDate, null);
+  assert.equal(t.closedDate, null);
+});
+
 test('rowToTicket maps createdByUser and assignedUser', () => {
   const row = {
     Id: 'a',

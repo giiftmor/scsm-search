@@ -12,6 +12,10 @@ export interface TicketRow {
   Status: string;
   Priority: string | null;
   CreatedDate: Date | string;
+  ResolvedDate: Date | string | null;
+  ClosedDate: Date | string | null;
+  Description: string | null;
+  ResolutionDescription: string | null;
   AffectedUser: string | null;
   AffectedUserId: string | null;
   CreatedByUser: string | null;
@@ -31,6 +35,10 @@ export interface TicketResult {
   status: string;
   priority: string | null;
   createdDate: string;
+  resolvedDate: string | null;
+  closedDate: string | null;
+  description: string | null;
+  resolutionDescription: string | null;
   affectedUser: UserResult | null;
   createdByUser: UserResult | null;
   assignedUser: UserResult | null;

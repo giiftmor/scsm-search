@@ -62,6 +62,10 @@ const ticketRow = {
   Status: 'Active',
   Priority: '2',
   CreatedDate: '2026-07-01T09:00:00Z',
+  ResolvedDate: '2026-07-02T10:00:00Z',
+  ClosedDate: '2026-07-03T11:00:00Z',
+  Description: 'the body',
+  ResolutionDescription: 'the fix',
   AffectedUser: 'John Smith',
   AffectedUserId: 'g',
   TicketType: 'incident',
@@ -72,6 +76,9 @@ test('resolves user id then returns merged tickets', async () => {
   const res = await request(makeApp(pool)).get('/v1/users/jsmith/tickets');
   assert.equal(res.status, 200);
   assert.equal(res.body.results[0].ticketType, 'incident');
+  assert.equal(res.body.results[0].description, 'the body');
+  assert.equal(res.body.results[0].resolvedDate, '2026-07-02T10:00:00Z');
+  assert.equal(res.body.results[0].closedDate, '2026-07-03T11:00:00Z');
   assert.equal(res.body.total, 1);
   assert.equal(res.body.page, 1);
   assert.equal(res.body.pageSize, 25);
