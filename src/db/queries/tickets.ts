@@ -18,6 +18,8 @@ export interface SearchTicketsParams {
   type: TicketKind;
   status?: string;
   priority?: string;
+  tier?: string;
+  location?: string;
   affectedUserId?: string;
   createdByUserId?: string;
   assignedUserId?: string;
@@ -69,6 +71,14 @@ export function buildTicketWhere(
   if (p.priority && p.type === 'servicerequest') {
     where.push('Priority = @priority');
     inputs.priority = p.priority;
+  }
+  if (p.tier) {
+    where.push('Tier = @tier');
+    inputs.tier = p.tier;
+  }
+  if (p.location) {
+    where.push(`${locationColumn(p.type)} LIKE '%' + @location + '%' ESCAPE '\\'`);
+    inputs.location = escapeLike(p.location);
   }
   if (p.affectedUserId) {
     where.push(roleFilter('AffectedUserId', 'affectedUserId'));

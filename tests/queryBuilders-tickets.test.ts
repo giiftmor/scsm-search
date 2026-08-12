@@ -388,3 +388,28 @@ test('rowToTicket maps null tier/location and omits relevance when absent', () =
   assert.equal(t.location, null);
   assert.ok(!('relevance' in t));
 });
+
+test('search tickets: tier filter binds exactly', () => {
+  const q = buildSearchTicketsQuery({ ...base, tier: 'Potch Staff Service Desk' }, 'fts');
+  assert.ok(q.sql.includes('Tier = @tier'));
+  assert.equal(q.inputs.tier, 'Potch Staff Service Desk');
+});
+
+test('search tickets: location filter uses contains on the location column', () => {
+  const q = buildSearchTicketsQuery({ ...base, location: 'A21' }, 'fts');
+  assert.ok(q.sql.includes("CurrentLocation_DC52702B_4C6C_AE3D_56FA_5ED1522FDE0A LIKE '%' + @location + '%' ESCAPE '\\'"));
+  assert.equal(q.inputs.location, 'A21');
+  const sr = buildSearchTicketsQuery({ ...base, type: 'servicerequest', location: 'A21' }, 'fts');
+  assert.ok(sr.sql.includes('CurrentLocation_89125754_0643_0DA6_D2EB_50167E386A23 LIKE'));
+});
+
+test('search tickets: location filter escapes LIKE wildcards', () => {
+  const q = buildSearchTicketsQuery({ ...base, location: '50%' }, 'like');
+  assert.equal(q.inputs.location, '50\\%');
+});
+
+test('count tickets includes tier and location filters', () => {
+  const q = buildCountTicketsQuery({ ...base, tier: 'T', location: 'A21' }, 'like');
+  assert.ok(q.sql.includes('Tier = @tier'));
+  assert.ok(q.sql.includes('CurrentLocation_DC52702B_4C6C_AE3D_56FA_5ED1522FDE0A LIKE'));
+});
