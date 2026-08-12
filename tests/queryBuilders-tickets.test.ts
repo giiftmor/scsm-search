@@ -336,3 +336,26 @@ test('rowToTicket maps null createdBy and assigned users', () => {
   assert.equal(t.createdByUser, null);
   assert.equal(t.assignedUser, null);
 });
+
+test('rowToTicket maps tier, location and relevance', () => {
+  const row = {
+    Id: 'a', WorkItemId: 'IR1', Title: 't', Status: 'Active', Priority: '2',
+    CreatedDate: new Date('2026-07-01T09:00:00Z'), AffectedUser: null, AffectedUserId: null,
+    Tier: 'Potch Staff Service Desk', Location: 'Vaal - VC - A21-105', Relevance: 3,
+  };
+  const t = rowToTicket(row);
+  assert.equal(t.tier, 'Potch Staff Service Desk');
+  assert.equal(t.location, 'Vaal - VC - A21-105');
+  assert.equal(t.relevance, 3);
+});
+
+test('rowToTicket maps null tier/location and omits relevance when absent', () => {
+  const row = {
+    Id: 'a', WorkItemId: 'IR1', Title: 't', Status: 'Active', Priority: '2',
+    CreatedDate: '2026-07-01', AffectedUser: null, AffectedUserId: null, Tier: null, Location: null,
+  };
+  const t = rowToTicket(row);
+  assert.equal(t.tier, null);
+  assert.equal(t.location, null);
+  assert.ok(!('relevance' in t));
+});

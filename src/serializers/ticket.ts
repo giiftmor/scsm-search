@@ -26,12 +26,17 @@ export function rowToTicket(row: TicketRow): TicketResult {
     closedDate: toIso(row.ClosedDate),
     description: row.Description ?? null,
     resolutionDescription: row.ResolutionDescription ?? null,
+    tier: row.Tier ?? null,
+    location: row.Location ?? null,
     affectedUser: toUserResult(row.AffectedUser, row.AffectedUserId),
     createdByUser: toUserResult(row.CreatedByUser, row.CreatedByUserId),
     assignedUser: toUserResult(row.AssignedUser, row.AssignedUserId),
   };
   if ('TicketType' in row && (row as { TicketType?: string }).TicketType) {
     result.ticketType = (row as { TicketType: TicketResult['ticketType'] }).TicketType;
+  }
+  if (row.Relevance != null) {
+    result.relevance = row.Relevance;
   }
   return result;
 }

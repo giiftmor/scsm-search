@@ -16,6 +16,9 @@ export interface TicketRow {
   ClosedDate: Date | string | null;
   Description: string | null;
   ResolutionDescription: string | null;
+  Tier: string | null;
+  Location: string | null;
+  Relevance?: number;
   AffectedUser: string | null;
   AffectedUserId: string | null;
   CreatedByUser: string | null;
@@ -39,6 +42,9 @@ export interface TicketResult {
   closedDate: string | null;
   description: string | null;
   resolutionDescription: string | null;
+  tier: string | null;
+  location: string | null;
+  relevance?: number;
   affectedUser: UserResult | null;
   createdByUser: UserResult | null;
   assignedUser: UserResult | null;
