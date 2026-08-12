@@ -4,6 +4,7 @@ import type { ConnectionPool } from 'mssql';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.js';
+import { metaRouter } from './routes/meta.js';
 import { searchRouter } from './routes/search.js';
 import { usersRouter } from './routes/users.js';
 
@@ -20,6 +21,7 @@ export function createApp({ pool, searchMode, apiKeys }: AppDeps): express.Expre
 
   app.use('/healthz', healthRouter({ pool }));
   app.use('/v1', createAuthMiddleware(apiKeys));
+  app.use('/v1/meta', metaRouter({ pool }));
   app.use('/v1/search', searchRouter({ pool, searchMode }));
   app.use('/v1/users', usersRouter({ pool }));
 

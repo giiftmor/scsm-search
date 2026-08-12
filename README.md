@@ -34,7 +34,9 @@ It exists because SCSM's native search is slow and imprecise. This service queri
 
 ## Features
 
-- **Ticket search** across Incidents and Service Requests with filters: free-text `q` (matches `WorkItemId`, title, and description), `status`, `priority` (Service Requests only), affected/created-by/assigned user IDs, and a `from`/`to` created-date range.
+- **Ticket search** across Incidents and Service Requests with filters: free-text `q` (matches `WorkItemId`, title, description, tier, and location), `status`, `priority` (Service Requests only), `tier`, `location`, affected/created-by/assigned user IDs, and a `from`/`to` created-date range.
+- **Relevance ranking** — results sort by relevance by default (phrase and title matches rank highest), with `newest` and `az` alternatives.
+- **Filter metadata** — `GET /v1/meta/filters` returns the distinct tiers and statuses to power filter dropdowns.
 - **User search** over the SCSM `DomainUser` warehouse view by name, user ID, or UPN.
 - **User ticket pivot** — `GET /v1/users/:id/tickets` returns all of a person's tickets, filtering by their role on the ticket (`affected`, `created_by`, or `assigned`). The `:id` resolves by **GUID, username, or UPN**.
 - **Two search backends**, selectable at startup: SQL Server Full-Text Search (`SEARCH_MODE=fts`) or `LIKE` fallback (`SEARCH_MODE=like`).
@@ -60,6 +62,7 @@ It exists because SCSM's native search is slow and imprecise. This service queri
                  │                              │
                  │   /v1/search/tickets          │
                  │   /v1/search/users            │
+                 │   /v1/meta/filters            │
                  │   /v1/users/:id/tickets       │
                  └──────────────┬───────────────┘
                                 │ HTTP/JSON (x-api-key)
@@ -116,6 +119,9 @@ Search tickets of one type.
 | `q` | string | no | Free text; matches `WorkItemId` (LIKE) and title/description (CONTAINS in `fts` mode, LIKE in `like` mode). Max 200 chars |
 | `status` | string | no | Exact match, max 100 chars |
 | `priority` | string | no | Service Requests only (Incidents have no priority column) |
+| `tier` | string | no | Exact match on the support tier, max 100 chars |
+| `location` | string | no | Substring match (LIKE, escaped), max 200 chars |
+| `sort` | `relevance` \| `newest` \| `az` | no | Result ordering; default `relevance` |
 | `affectedUserId` | string | no | Filter by the affected user's GUID |
 | `createdByUserId` | string | no | Filter by the creator's GUID |
 | `assignedUserId` | string | no | Filter by the assignee's GUID |
@@ -126,6 +132,19 @@ Search tickets of one type.
 #### `GET /v1/search/users`
 
 Search domain users. Params: `q` (matches display name / user ID / UPN, max 200 chars), `page`, `pageSize`. Returns `{ id, userId, displayName, upn }` per result.
+
+#### `GET /v1/meta/filters`
+
+Distinct filter values for building dropdowns, aggregated across Incidents and Service Requests (nulls excluded, sorted A–Z):
+
+```json
+{
+  "tiers": ["Operations", "Potch Staff Service Desk"],
+  "statuses": ["Active", "Closed", "Resolved"]
+}
+```
+
+No query parameters. API-key protected like every other `/v1/*` route.
 
 #### `GET /v1/users/:id/tickets`
 
@@ -158,6 +177,8 @@ All search endpoints return the same envelope:
   "title": "Printer not responding",
   "status": "Active",
   "priority": null,
+  "tier": "Operations",
+  "location": "Building A, 2nd Floor",
   "createdDate": "2026-07-01T09:00:00.000Z",
   "resolvedDate": "2026-07-02T10:00:00.000Z",
   "closedDate": null,
@@ -171,6 +192,7 @@ All search endpoints return the same envelope:
 ```
 
 - `priority` is `null` for Incidents — the source schema has no priority column on `SM_WorkItem_Incident`; it is populated for Service Requests only.
+- `tier` and `location` are `null` when the source row has no value; `relevance` is present only in `fts` mode when a rank was computed.
 - `*User` fields are `null` when the corresponding user could not be resolved to a display name.
 - `ticketType` is only present on results from `GET /v1/users/:id/tickets` (the merged union query).
 
@@ -200,7 +222,7 @@ Every error is `{ "error": { "code": "...", "message": "..." } }`:
 
 ### Pagination
 
-`page` defaults to `1`, `pageSize` to `25` (max `100`). Results are ordered by `CreatedDate` descending. Use `page * pageSize >= total` to know you've reached the end.
+`page` defaults to `1`, `pageSize` to `25` (max `100`). Ordering follows the `sort` param: `relevance` (default), `newest` (created date descending), or `az` (title). Use `page * pageSize >= total` to know you've reached the end.
 
 ---
 
@@ -317,11 +339,13 @@ src/
     queries/
       tickets.ts         # ticket search/count + user-tickets union SQL builders
       users.ts           # user search/count + id-resolve SQL builders
+      meta.ts            # tier/status filter-values SQL builder
   middleware/
     auth.ts              # constant-time X-API-Key auth
     errorHandler.ts      # ZodError→400, conn errors→503, else 500
   routes/
     health.ts            # GET /healthz
+    meta.ts              # /v1/meta/filters
     search.ts            # /v1/search/tickets, /v1/search/users
     users.ts             # /v1/users/:id/tickets
   schemas/searchParams.ts# zod query-param schemas
