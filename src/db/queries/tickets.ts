@@ -20,6 +20,7 @@ export interface SearchTicketsParams {
   priority?: string;
   tier?: string;
   location?: string;
+  sort?: 'relevance' | 'newest' | 'az';
   affectedUserId?: string;
   createdByUserId?: string;
   assignedUserId?: string;
@@ -47,6 +48,26 @@ function roleFilter(role: string, param: string): string {
   return `EXISTS (SELECT 1 FROM ${USER_TABLE} u
     WHERE u.BaseManagedEntityId = ${role}
       AND (${USERNAME_COL} = @${param} OR ${UPN_COL} = @${param}))`;
+}
+
+function buildRelevanceExpr(
+  tokens: string[],
+  kind: TicketKind,
+  inputs: Record<string, string | number | Date>
+): string {
+  const text =
+    "ISNULL(Title, N'') + N' ' + ISNULL(Description, N'') + N' ' + ISNULL(ResolutionDescription, N'')";
+  const pos = tokens.map((_, i) => `NULLIF(CHARINDEX(@tok${i}, ${text}), 0)`);
+  inputs.phrase = tokens.join(' ');
+  const pairs: string[] = [];
+  for (let i = 0; i < tokens.length - 1; i++) {
+    pairs.push(
+      `CASE WHEN ${pos[i + 1]} IS NOT NULL AND ${pos[i]} IS NOT NULL AND ${pos[i + 1]} > ${pos[i]} ` +
+        `THEN ${pos[i + 1]} - ${pos[i]} - LEN(@tok${i}) ELSE 10000 END`
+    );
+  }
+  const sum = pairs.length ? `(${pairs.join(' + ')})` : '0';
+  return `CASE WHEN CHARINDEX(@phrase, ${text}) > 0 THEN 0 ELSE ${sum} END`;
 }
 
 export function sanitizeFtsTerm(q: string): string {
@@ -141,11 +162,22 @@ export function buildSearchTicketsQuery(
   inputs.offset = (p.page - 1) * p.pageSize;
   inputs.pageSize = p.pageSize;
   const whereSql = where.length ? `WHERE ${where.join('\n  AND ')}` : '';
+  const tokens = (p.q ?? '').trim().split(/\s+/).filter(Boolean);
+  const sort = p.sort ?? 'relevance';
+  inputs.sort = sort;
+  let selectExtra = '';
+  let orderBy = 'ORDER BY Created DESC';
+  if (searchMode === 'like' && sort === 'relevance' && tokens.length >= 2) {
+    selectExtra = `, ${buildRelevanceExpr(tokens, p.type, inputs)} AS Relevance`;
+    orderBy = 'ORDER BY Relevance ASC, Created DESC';
+  } else if (sort === 'az') {
+    orderBy = 'ORDER BY Title ASC';
+  }
   return {
-    sql: `SELECT ${ticketColumns(p.type)}
+    sql: `SELECT ${ticketColumns(p.type)}${selectExtra}
 FROM ${ticketTable(p.type)}
 ${whereSql}
-ORDER BY Created DESC
+${orderBy}
 OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;`,
     inputs,
   };

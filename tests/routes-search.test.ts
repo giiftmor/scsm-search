@@ -142,5 +142,17 @@ test('GET /v1/search/tickets in like mode passes q through raw', async () => {
   const res = await request(makeApp(pool, 'like')).get('/v1/search/tickets').query({ type: 'incident', q: 'printer%' });
   assert.equal(res.status, 200);
   assert.equal(res.body.results[0].workItemId, 'IR1');
-  assert.equal(calls[0].q, 'printer%');
+  assert.equal(calls[0].tok0, 'printer\\%');
+  assert.ok(!('q' in calls[0]));
+});
+
+test('GET /v1/search/tickets binds tier/location/sort params', async () => {
+  const { pool, calls } = capturingPool([[ticketRow], [{ Total: 1 }]]);
+  const res = await request(makeApp(pool, 'like'))
+    .get('/v1/search/tickets')
+    .query({ type: 'incident', q: 'printer', tier: 'T', location: 'A21', sort: 'az' });
+  assert.equal(res.status, 200);
+  assert.equal(calls[0].tier, 'T');
+  assert.equal(calls[0].location, 'A21');
+  assert.equal(calls[0].sort, 'az');
 });

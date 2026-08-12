@@ -413,3 +413,33 @@ test('count tickets includes tier and location filters', () => {
   assert.ok(q.sql.includes('Tier = @tier'));
   assert.ok(q.sql.includes('CurrentLocation_DC52702B_4C6C_AE3D_56FA_5ED1522FDE0A LIKE'));
 });
+
+test('search tickets: sort az orders by Title', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'x', sort: 'az' }, 'like');
+  assert.ok(q.sql.includes('ORDER BY Title ASC'));
+});
+
+test('search tickets: sort newest orders by Created desc', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'x', sort: 'newest' }, 'like');
+  assert.ok(q.sql.includes('ORDER BY Created DESC'));
+  assert.ok(!q.sql.includes('AS Relevance'));
+});
+
+test('search tickets: sort relevance adds a Relevance column and orders by it', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'printer jam', sort: 'relevance' }, 'like');
+  assert.ok(q.sql.includes('AS Relevance'));
+  assert.ok(q.sql.includes('ORDER BY Relevance ASC, Created DESC'));
+  assert.equal(q.inputs.phrase, 'printer jam');
+});
+
+test('search tickets: single-token relevance query keeps Created DESC and no Relevance column', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'printer', sort: 'relevance' }, 'like');
+  assert.ok(q.sql.includes('ORDER BY Created DESC'));
+  assert.ok(!q.sql.includes('AS Relevance'));
+});
+
+test('search tickets: relevance sort is ignored in fts mode', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'printer jam', sort: 'relevance' }, 'fts');
+  assert.ok(!q.sql.includes('AS Relevance'));
+  assert.ok(q.sql.includes('ORDER BY Created DESC'));
+});
