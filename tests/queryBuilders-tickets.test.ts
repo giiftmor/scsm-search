@@ -42,7 +42,7 @@ test('search tickets: fts mode drops a term that sanitizes to empty (no CONTAINS
 
 test('search tickets: like mode uses LIKE', () => {
   const q = buildSearchTicketsQuery({ ...base, q: 'printer' }, 'like');
-  assert.ok(q.sql.includes("Title LIKE '%' + @q + '%'"));
+  assert.ok(q.sql.includes("Title LIKE '%' + @tok0 + '%'"));
   assert.ok(!q.sql.includes('CONTAINS'));
 });
 
@@ -54,8 +54,37 @@ test('search tickets: q also matches WorkItemId in fts mode', () => {
 
 test('search tickets: q also matches WorkItemId in like mode', () => {
   const q = buildSearchTicketsQuery({ ...base, q: 'IR1660031' }, 'like');
-  assert.ok(q.sql.includes("WorkItemId LIKE '%' + @qId + '%'"));
-  assert.equal(q.inputs.qId, 'IR1660031');
+  assert.ok(q.sql.includes("WorkItemId LIKE '%' + @tok0 + '%'"));
+  assert.equal(q.inputs.tok0, 'IR1660031');
+});
+
+test('search tickets: like mode tokenizes q into per-word AND groups', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'printer jam' }, 'like');
+  assert.ok(q.sql.includes('WorkItemId LIKE \'%\' + @tok0 + \'%\''));
+  assert.ok(q.sql.includes('WorkItemId LIKE \'%\' + @tok1 + \'%\''));
+  assert.equal(q.inputs.tok0, 'printer');
+  assert.equal(q.inputs.tok1, 'jam');
+  assert.ok(q.sql.split('\n  AND ').length >= 2, 'two token groups joined by AND');
+});
+
+test('search tickets: like mode matches Tier and Location columns per token', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: 'a21' }, 'like');
+  assert.ok(q.sql.includes('Tier LIKE \'%\' + @tok0 + \'%\''));
+  assert.ok(q.sql.includes('CurrentLocation_DC52702B_4C6C_AE3D_56FA_5ED1522FDE0A LIKE \'%\' + @tok0 + \'%\''));
+  const sr = buildSearchTicketsQuery({ ...base, type: 'servicerequest', q: 'a21' }, 'like');
+  assert.ok(sr.sql.includes('CurrentLocation_89125754_0643_0DA6_D2EB_50167E386A23 LIKE \'%\' + @tok0 + \'%\''));
+});
+
+test('search tickets: like mode escapes LIKE wildcards in tokens', () => {
+  const q = buildSearchTicketsQuery({ ...base, q: '50%_ok' }, 'like');
+  assert.ok(q.sql.includes("ESCAPE '\\'"));
+  assert.equal(q.inputs.tok0, '50\\%\\_ok');
+});
+
+test('search tickets: projects tier and location columns', () => {
+  const q = buildSearchTicketsQuery(base, 'fts');
+  assert.ok(q.sql.includes('Tier'));
+  assert.ok(q.sql.includes('CurrentLocation_DC52702B_4C6C_AE3D_56FA_5ED1522FDE0A AS Location'));
 });
 
 test('search tickets: WorkItemId and text matches share one OR group', () => {

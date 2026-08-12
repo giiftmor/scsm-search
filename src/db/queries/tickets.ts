@@ -1,7 +1,17 @@
 import type { PreparedQuery } from '../exec.js';
 import { USER_TABLE, USERNAME_COL, UPN_COL } from './users.js';
+import { escapeLike } from '../escapeLike.js';
 
 export type TicketKind = 'incident' | 'servicerequest';
+
+const LOCATION_COL: Record<TicketKind, string> = {
+  incident: 'CurrentLocation_DC52702B_4C6C_AE3D_56FA_5ED1522FDE0A',
+  servicerequest: 'CurrentLocation_89125754_0643_0DA6_D2EB_50167E386A23',
+};
+
+export function locationColumn(kind: TicketKind): string {
+  return LOCATION_COL[kind];
+}
 
 export interface SearchTicketsParams {
   q?: string;
@@ -26,8 +36,8 @@ export function ticketTable(kind: TicketKind): string {
 function ticketColumns(kind: TicketKind): string {
   const base =
     kind === 'servicerequest'
-      ? `Id, WorkItemId, Title, Status, Priority, Created AS CreatedDate, ResolvedDate, ClosedDate, Description, ResolutionDescription`
-      : `Id, WorkItemId, Title, Status, NULL AS Priority, Created AS CreatedDate, ResolvedDate, ClosedDate, Description, ResolutionDescription`;
+      ? `Id, WorkItemId, Title, Status, Priority, Created AS CreatedDate, ResolvedDate, ClosedDate, Description, ResolutionDescription, Tier, ${locationColumn(kind)} AS Location`
+      : `Id, WorkItemId, Title, Status, NULL AS Priority, Created AS CreatedDate, ResolvedDate, ClosedDate, Description, ResolutionDescription, Tier, ${locationColumn(kind)} AS Location`;
   return `${base}, AffectedUser, AffectedUserId, CreatedByUser, CreatedByUserId, AssignedUser, AssignedUserId`;
 }
 
@@ -95,11 +105,19 @@ export function buildTicketWhere(
         inputs.qId = p.q;
       }
     } else {
-      where.push(
-        `(WorkItemId LIKE '%' + @qId + '%' OR Title LIKE '%' + @q + '%' OR Description LIKE '%' + @q + '%' OR ResolutionDescription LIKE '%' + @q + '%')`
-      );
-      inputs.q = p.q;
-      inputs.qId = p.q;
+      const tokens = p.q.trim().split(/\s+/).filter(Boolean);
+      if (tokens.length) {
+        const groups = tokens.map((token, i) => {
+          inputs[`tok${i}`] = escapeLike(token);
+          return `(WorkItemId LIKE '%' + @tok${i} + '%' ESCAPE '\\'
+  OR Title LIKE '%' + @tok${i} + '%' ESCAPE '\\'
+  OR Description LIKE '%' + @tok${i} + '%' ESCAPE '\\'
+  OR ResolutionDescription LIKE '%' + @tok${i} + '%' ESCAPE '\\'
+  OR Tier LIKE '%' + @tok${i} + '%' ESCAPE '\\'
+  OR ${locationColumn(p.type)} LIKE '%' + @tok${i} + '%' ESCAPE '\\')`;
+        });
+        where.push(groups.join('\n  AND '));
+      }
     }
   }
   return { where, inputs };
