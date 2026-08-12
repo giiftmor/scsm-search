@@ -56,3 +56,21 @@ test('user tickets: defaults applied', () => {
   assert.equal(p.page, 1);
   assert.equal(p.pageSize, 25);
 });
+
+test('ticket search: parses tier, location and sort', () => {
+  const p = ticketSearchParamsSchema.parse({
+    type: 'incident', tier: 'Potch Staff Service Desk', location: 'A21', sort: 'az',
+  });
+  assert.equal(p.tier, 'Potch Staff Service Desk');
+  assert.equal(p.location, 'A21');
+  assert.equal(p.sort, 'az');
+});
+
+test('ticket search: sort defaults to relevance', () => {
+  const p = ticketSearchParamsSchema.parse({ type: 'incident' });
+  assert.equal(p.sort, 'relevance');
+});
+
+test('ticket search: rejects unknown sort', () => {
+  assert.throws(() => ticketSearchParamsSchema.parse({ type: 'incident', sort: 'bogus' }));
+});
