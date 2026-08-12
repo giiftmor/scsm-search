@@ -14,6 +14,12 @@ test('search users: no q -> no WHERE clause, correct pagination', () => {
   assert.ok(q.sql.includes('OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY'));
 });
 
+test('search users: whitespace-only q adds no where clause', () => {
+  const q = buildSearchUsersQuery({ q: '   ', page: 1, pageSize: 25 });
+  assert.ok(!q.sql.includes('WHERE'));
+  assert.deepEqual(q.inputs, { offset: 0, pageSize: 25 });
+});
+
 test('search users: q matches username, displayname, or upn per word', () => {
   const q = buildSearchUsersQuery({ q: 'john smith', page: 1, pageSize: 25 });
   assert.ok(q.sql.includes('@uq0'));

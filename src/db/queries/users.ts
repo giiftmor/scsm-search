@@ -26,7 +26,9 @@ function userWhere(q?: string): { where: string[]; inputs: Record<string, string
       inputs[`uq${i}`] = escapeLike(token);
       return `(${USERNAME_COL} LIKE '%' + @uq${i} + '%' ESCAPE '\\' OR u.DisplayName LIKE '%' + @uq${i} + '%' ESCAPE '\\' OR ${UPN_COL} LIKE '%' + @uq${i} + '%' ESCAPE '\\')`;
     });
-    where.push(groups.join('\n  AND '));
+    if (groups.length) {
+      where.push(groups.join('\n  AND '));
+    }
   }
   return { where, inputs };
 }
