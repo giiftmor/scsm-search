@@ -1,3 +1,4 @@
+import { escapeLike } from '../escapeLike.js';
 import type { PreparedQuery } from '../exec.js';
 
 export const USER_TABLE = 'ServiceManager.dbo.MTV_System$Domain$User';
@@ -20,10 +21,12 @@ function userWhere(q?: string): { where: string[]; inputs: Record<string, string
   const where: string[] = [];
   const inputs: Record<string, string> = {};
   if (q) {
-    where.push(
-      `(${USERNAME_COL} LIKE '%' + @q + '%' OR u.DisplayName LIKE '%' + @q + '%' OR ${UPN_COL} LIKE '%' + @q + '%')`
-    );
-    inputs.q = q;
+    const tokens = q.trim().split(/\s+/).filter(Boolean);
+    const groups = tokens.map((token, i) => {
+      inputs[`uq${i}`] = escapeLike(token);
+      return `(${USERNAME_COL} LIKE '%' + @uq${i} + '%' ESCAPE '\\' OR u.DisplayName LIKE '%' + @uq${i} + '%' ESCAPE '\\' OR ${UPN_COL} LIKE '%' + @uq${i} + '%' ESCAPE '\\')`;
+    });
+    where.push(groups.join('\n  AND '));
   }
   return { where, inputs };
 }
